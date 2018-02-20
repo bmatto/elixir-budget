@@ -21,38 +21,36 @@ defmodule Budget do
       |> Enum.to_list
   end
 
-  def groupByCategory (posts) do
-    posts
-    |> Enum.group_by(fn ({ :ok, post }) -> post |> Enum.at(@reportMap.category) end)
+  def groupByCategory (transactions) do
+    transactions
+    |> Enum.group_by(fn ({ :ok, row }) -> row |> rowValue(:category) end)
   end
 
-  def sumCategory({name, posts}) do
-    sum = posts
-      |> Enum.reduce(0, fn({:ok, post}, acc) ->
-          float = case post |> Enum.at(@reportMap.amount) |> Float.parse do
-            {float, _remainder} -> abs(float)
-            :error -> acc
-          end
-
-          acc + float
-        end
-      )
+  def sumCategory({name, transactions}) do
+    sum = Enum.reduce(transactions, 0, fn({:ok, transaction}, acc) ->
+      amount = transaction |> rowValue(:amount) |> parseAmount()
+      acc + amount
+    end)
 
     { :ok, name, sum }
-  end
-
-  def amountByCategory (categories) do
-    categories
-      |> Enum.map(
-        fn(category) ->
-          sumCategory(category)
-        end
-      )
   end
 
   def run (path) do
     getFileContents(path)
       |> groupByCategory
-      |> amountByCategory
+      |> Enum.map(&sumCategory/1)
   end
+
+  @spec parseAmount(String.t()) :: float
+  defp parseAmount(amount) do
+    amount
+      |> String.replace("--", "")
+      |> Float.parse()
+      |> (fn ({ float, _respose }) -> float end).()
+  end
+
+  defp rowValue(row, col) do
+    Enum.at(row, @reportMap[col])
+  end
+
 end
